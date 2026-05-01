@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Unlucky 3: Curse of the Toxic Potion</title>
+    <style>
+        @font-face { font-family: 'LuckyCoin'; src: url('LuckyCoin-3zA46.ttf'); }
+        @font-face { font-family: 'LoverChunky'; src: url('LoverChunkyRegular-woDvw.otf'); }
+        @font-face { font-family: 'Rillwood'; src: url('Rillwood-4nzq6.ttf'); }
+
+        :root {
+            --p1-color: #b388ff;
+            --p2-color: #81d4fa;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background: #0a0a0a;
+            font-family: sans-serif; color: white;
+        }
+
+        #game-container {
+            width: 100vw; height: 100vh;
+            background: url('background.png') no-repeat center center fixed;
+            background-size: cover;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-start;
+            padding-top: 20px;
+        }
+
+        .hidden { display: none !important; }
+        .flex-center { display: flex; align-items: center; justify-content: center; flex-direction: column; }
+
+        /* HOME SCREEN STYLING */
+        #home-screen {
+            height: 70vh;
+            text-align: center;
+        }
+        .main-title { 
+            font-family: 'LuckyCoin', cursive; font-size: 5.5rem; 
+            margin: 0; color: white;
+        }
+        .subtitle {
+            font-family: 'LoverChunky', sans-serif; font-size: 2.5rem;
+            color: white; margin: 0px 0 30px 0;
+        }
+
+        button {
+            padding: 10px 25px; font-size: 1.3rem; cursor: pointer;
+            font-family: 'Rillwood', serif; background: #fff; border: none;
+            border-radius: 5px; transition: 0.3s; margin: 5px;
+            color: black; font-weight: bold;
+        }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 10px white; }
+
+        .top-ui-bar {
+            width: 95%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1100;
+            margin-bottom: 10px;
+        }
+
+        /* Audio Controls Styling */
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+        #volume-slider { cursor: pointer; width: 80px; }
+
+        #turn-indicator {
+            background: white; color: black;
+            padding: 8px 30px; border-radius: 50px; font-family: 'LoverChunky';
+            font-size: 1.5rem; box-shadow: 0 0 20px gold;
+        }
+
+        #setup-screen { width: 100%; height: 85%; display: flex; justify-content: center; gap: 10px; padding: 0 20px; box-sizing: border-box; }
+        
+        .player-col { 
+            width: 48%; height: 100%; background: rgba(0,0,0,0.85); 
+            padding: 15px; border: 4px solid #444; box-sizing: border-box;
+            display: flex; flex-direction: column; align-items: center;
+            transition: all 0.4s ease; position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .active-target {
+            background: rgba(255, 255, 255, 0.95) !important;
+            box-shadow: 0 0 30px white;
+            z-index: 5;
+            pointer-events: auto !important;
+        }
+        .active-target h2 { color: black !important; }
+        
+        .inactive-side { opacity: 0.5; filter: grayscale(0.7); pointer-events: none; }
+        .eliminated-visual { border-color: red !important; }
+
+        .card-grid {
+            display: grid; 
+            grid-template-columns: repeat(5, 1fr); 
+            gap: 8px;
+            margin: 10px 0; 
+            width: 100%; 
+            justify-items: center;
+            flex-grow: 1; 
+            overflow-y: auto;
+            padding-bottom: 15px;
+        }
+        
+        .card-slot {
+            width: 100%; aspect-ratio: 3/4; 
+            background: #ffffff; 
+            border-radius: 8px;
+            position: relative; 
+            border: 2px solid #555; 
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .card-img { width: 95%; height: 95%; object-fit: contain; cursor: pointer; }
+
+        .poison-overlay {
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
+            background: url('poison.png') center/contain no-repeat rgba(255, 0, 0, 0.4);
+            z-index: 10; pointer-events: none;
+        }
+
+        .poison-token {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            cursor: grab;
+        }
+
+        .safe-overlay {
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
+            background-color: #4CAF50;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-family: 'LoverChunky'; font-size: 1.2rem;
+            z-index: 11;
+        }
+
+        .clover-bar { display: flex; gap: 5px; margin: 5px 0; height: 35px; }
+        .clover-icon { width: 30px; height: 30px; }
+
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.95); z-index: 2000;
+        }
+        .zoom-card { width: 300px; border: 10px solid white; border-radius: 15px; background: white; }
+
+        .enlarge-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .enlarge-item {
+            background: white; border-radius: 10px; padding: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<audio id="bg-music" src="bmusic.mp3" loop></audio>
+
+<div id="game-container">
+    <div class="top-ui-bar">
+        <div class="audio-controls">
+            <button id="btn-mute" onclick="toggleMute()" style="font-size: 0.7rem; padding: 5px 10px; margin:0;">Mute</button>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.5" oninput="updateVolume(this.value)">
+        </div>
+        
+        <div id="turn-indicator" class="hidden"></div>
+        <button onclick="toggleFS()" style="font-size: 0.8rem; margin:0;">Fullscreen</button>
+    </div>
+
+    <div id="home-screen" class="flex-center">
+        <h1 class="main-title">The Unlucky 3:</h1>
+        <h2 class="subtitle">Curse of the Toxic Potion</h2>
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <div id="setup-screen" class="hidden">
+        <div id="p1-col" class="player-col p1-border">
+            <h2 style="font-family:'LoverChunky'; color:var(--p1-color)">Player One</h2>
+            <div style="display:flex; gap:5px;">
+                <button id="p1-assign-btn" onclick="assignCards(1)">Assign Cards</button>
+                <button id="p1-enlarge-btn" class="hidden" onclick="enlargeAll(1)" style="font-size: 0.9rem;">Enlarge All</button>
+            </div>
+            <div id="p1-clovers" class="clover-bar"></div>
+            <div id="p1-poison-dock" style="display:flex; gap:10px; min-height:75px; align-items:center;"></div>
+            <div id="p1-grid" class="card-grid"></div>
+            <button id="p1-finish-btn" class="hidden" onclick="lockIndividualPoison(1)">Finish Hiding</button>
+        </div>
+
+        <div id="p2-col" class="player-col p2-border">
+            <h2 style="font-family:'LoverChunky'; color:var(--p2-color)">Player Two</h2>
+            <div style="display:flex; gap:5px;">
+                <button id="p2-assign-btn" onclick="assignCards(2)">Assign Cards</button>
+                <button id="p2-enlarge-btn" class="hidden" onclick="enlargeAll(2)" style="font-size: 0.9rem;">Enlarge All</button>
+            </div>
+            <div id="p2-clovers" class="clover-bar"></div>
+            <div id="p2-poison-dock" style="display:flex; gap:10px; min-height:75px; align-items:center;"></div>
+            <div id="p2-grid" class="card-grid"></div>
+            <button id="p2-finish-btn" class="hidden" onclick="lockIndividualPoison(2)">Finish Hiding</button>
+        </div>
+    </div>
+
+    <div id="control-bar" class="hidden" style="margin-top: 10px;">
+        <button id="btn-reveal-poison" class="hidden" onclick="initPoisonPhase()">Hide Toxic Potions</button>
+        <button id="btn-start-survival" class="hidden" onclick="initSurvivalPhase()">Will You Survive This Round?</button>
+        <div id="end-buttons" class="hidden">
+            <button onclick="location.reload()">New Game</button>
+        </div>
+    </div>
+</div>
+
+<div id="modal-overlay" class="hidden flex-center">
+    <div id="modal-content" class="flex-center"></div>
+    <div id="modal-btns">
+        <button id="btn-confirm-flip" style="background:#ff5252; color:white;">Flip Card</button>
+        <button id="btn-modal-ok" class="hidden" style="background:#4CAF50; color:white;">OK</button>
+    </div>
+</div>
+
+<script>
+    const imagesP1 = ["ate.png", "blew.png", "blue.png", "cell.png", "cent.png", "eight.png", "eye.png", "fair.png", "fare.png", "hair.png", "hare.png", "I.png", "mail.png", "male.png", "sail.png", "sale.png", "scent.png", "sell.png", "tail.png", "tale.png"];
+    const imagesP2 = ["hear.png", "here.png", "knight.png", "meat.png", "meet.png", "night.png", "pair.png", "pear.png", "poor.png", "pour.png", "right.png", "son.png", "steal.png", "steel.png", "sun.png", "wait.png", "weak.png", "week.png", "weight.png", "write.png"];
+
+    let gameState = {
+        p1: { cards: [], clovers: 3, ready: false, finishedHiding: false, isEliminated: false },
+        p2: { cards: [], clovers: 3, ready: false, finishedHiding: false, isEliminated: false },
+        phase: 'start',
+        currentPlayer: 1 
+    };
+
+    const music = document.getElementById('bg-music');
+    const muteBtn = document.getElementById('btn-mute');
+
+    function toggleFS() {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+    }
+
+    // Audio Functions
+    function toggleMute() {
+        music.muted = !music.muted;
+        muteBtn.innerText = music.muted ? "Unmute" : "Mute";
+    }
+
+    function updateVolume(val) {
+        music.volume = val;
+    }
+
+    function startGame() {
+        document.getElementById('home-screen').classList.add('hidden');
+        document.getElementById('setup-screen').classList.remove('hidden');
+        document.getElementById('control-bar').classList.remove('hidden');
+        
+        // Start playing music on first interaction
+        music.play().catch(e => console.log("Audio play blocked by browser. Interaction required."));
+    }
+
+    function assignCards(pNum) {
+        const pool = pNum === 1 ? imagesP1 : imagesP2;
+        const shuffled = [...pool].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, 10);
+        const player = pNum === 1 ? gameState.p1 : gameState.p2;
+        player.cards = selected.map(name => ({ name, hasPoison: false, isFlipped: false }));
+        player.ready = true;
+
+        const grid = document.getElementById(`p${pNum}-grid`);
+        grid.innerHTML = '';
+        player.cards.forEach((card, idx) => {
+            const slot = document.createElement('div');
+            slot.className = 'card-slot';
+            slot.dataset.idx = idx;
+            slot.dataset.player = pNum;
+            slot.ondragover = (e) => e.preventDefault();
+            slot.ondrop = dropPoison;
+            const img = document.createElement('img');
+            img.src = card.name; 
+            img.className = 'card-img';
+            img.onclick = () => handleCardClick(pNum, idx);
+            slot.appendChild(img);
+            grid.appendChild(slot);
+        });
+        document.getElementById(`p${pNum}-assign-btn`).classList.add('hidden');
+        document.getElementById(`p${pNum}-enlarge-btn`).classList.remove('hidden');
+        if (gameState.p1.ready && gameState.p2.ready) document.getElementById('btn-reveal-poison').classList.remove('hidden');
+    }
+
+    function enlargeAll(pNum) {
+        const player = pNum === 1 ? gameState.p1 : gameState.p2;
+        const modal = document.getElementById('modal-overlay');
+        const content = document.getElementById('modal-content');
+        const flipBtn = document.getElementById('btn-confirm-flip');
+        const okBtn = document.getElementById('btn-modal-ok');
+
+        modal.classList.remove('hidden');
+        flipBtn.classList.add('hidden');
+        okBtn.classList.remove('hidden');
+
+        let gridHTML = `<div class="enlarge-grid">`;
+        player.cards.forEach(card => {
+            gridHTML += `<div class="enlarge-item"><img src="${card.name}" style="width:100%; height:auto;"></div>`;
+        });
+        gridHTML += `</div>`;
+        content.innerHTML = gridHTML;
+
+        okBtn.onclick = () => {
+            modal.classList.add('hidden');
+        };
+    }
+
+    function initPoisonPhase() {
+        gameState.phase = 'poison';
+        document.getElementById('btn-reveal-poison').classList.add('hidden');
+        [1, 2].forEach(pNum => {
+            document.getElementById(`p${pNum}-finish-btn`).classList.remove('hidden');
+            const dock = document.getElementById(`p${pNum}-poison-dock`);
+            for(let i=0; i<3; i++) {
+                const p = document.createElement('img');
+                p.src = 'poison.png';
+                p.className = 'poison-token';
+                p.draggable = true;
+                p.id = `poison-p${pNum}-${i}`;
+                
+                p.ondragstart = (e) => {
+                    e.dataTransfer.setData("text", e.target.id);
+                    e.dataTransfer.setDragImage(e.target, 35, 35);
+                };
+                dock.appendChild(p);
+            }
+        });
+    }
+
+    function dropPoison(e) {
+        if (gameState.phase !== 'poison') return;
+        const tokenId = e.dataTransfer.getData("text");
+        const targetP = parseInt(this.dataset.player);
+        const cardIdx = parseInt(this.dataset.idx);
+        if (tokenId.includes(`p${targetP}`)) {
+            const player = targetP === 1 ? gameState.p1 : gameState.p2;
+            if (!player.cards[cardIdx].hasPoison) {
+                player.cards[cardIdx].hasPoison = true;
+                const overlay = document.createElement('div');
+                overlay.className = 'poison-overlay';
+                this.appendChild(overlay);
+                document.getElementById(tokenId).remove();
+            }
+        }
+    }
+
+    function lockIndividualPoison(pNum) {
+        if (document.getElementById(`p${pNum}-poison-dock`).children.length > 0) {
+            alert("Place all 3 poisons first!"); return;
+        }
+        gameState[pNum === 1 ? 'p1' : 'p2'].finishedHiding = true;
+        document.getElementById(`p${pNum}-finish-btn`).classList.add('hidden');
+        document.querySelectorAll(`#p${pNum}-grid .poison-overlay`).forEach(o => o.classList.add('hidden'));
+        if (gameState.p1.finishedHiding && gameState.p2.finishedHiding) document.getElementById('btn-start-survival').classList.remove('hidden');
+    }
+
+    function initSurvivalPhase() {
+        gameState.phase = 'survival';
+        document.getElementById('btn-start-survival').classList.add('hidden');
+        [1, 2].forEach(pNum => {
+            const bar = document.getElementById(`p${pNum}-clovers`);
+            bar.innerHTML = '';
+            for(let i=0; i<3; i++) {
+                const c = document.createElement('img');
+                c.src = 'clover.png'; c.className = 'clover-icon'; bar.appendChild(c);
+            }
+        });
+        updateTurnVisuals();
+    }
+
+    function updateTurnVisuals() {
+        const p1Col = document.getElementById('p1-col');
+        const p2Col = document.getElementById('p2-col');
+        const indicator = document.getElementById('turn-indicator');
+        indicator.classList.remove('hidden');
+        
+        if (gameState.currentPlayer === 1) {
+            indicator.innerText = "PLAYER 1'S TURN TO CLICK";
+            p2Col.classList.add('active-target'); p2Col.classList.remove('inactive-side');
+            p1Col.classList.add('inactive-side'); p1Col.classList.remove('active-target');
+        } else {
+            indicator.innerText = "PLAYER 2'S TURN TO CLICK";
+            p1Col.classList.add('active-target'); p1Col.classList.remove('inactive-side');
+            p2Col.classList.add('inactive-side'); p2Col.classList.remove('active-target');
+        }
+
+        if (gameState.p1.isEliminated) p1Col.classList.add('eliminated-visual');
+        if (gameState.p2.isEliminated) p2Col.classList.add('eliminated-visual');
+    }
+
+    function handleCardClick(ownerNum, idx) {
+        if (gameState.phase !== 'survival') return;
+        if (gameState.currentPlayer === 1 && ownerNum !== 2) return;
+        if (gameState.currentPlayer === 2 && ownerNum !== 1) return;
+
+        const owner = ownerNum === 1 ? gameState.p1 : gameState.p2;
+        const card = owner.cards[idx];
+        if (card.isFlipped) return;
+
+        const modal = document.getElementById('modal-overlay');
+        const content = document.getElementById('modal-content');
+        const flipBtn = document.getElementById('btn-confirm-flip');
+        const okBtn = document.getElementById('btn-modal-ok');
+
+        modal.classList.remove('hidden');
+        content.innerHTML = `<img src="${card.name}" class="zoom-card">`;
+        flipBtn.classList.remove('hidden');
+        okBtn.classList.add('hidden');
+
+        flipBtn.onclick = () => {
+            card.isFlipped = true;
+            flipBtn.classList.add('hidden');
+            okBtn.classList.remove('hidden');
+
+            const slot = document.querySelector(`#p${ownerNum}-grid .card-slot[data-idx="${idx}"]`);
+            
+            if (card.hasPoison) {
+                content.innerHTML = `
+                    <div style="position:relative;">
+                        <img src="${card.name}" class="zoom-card">
+                        <div class="poison-overlay"></div>
+                    </div>
+                    <h2 style="color:red; font-family:'LoverChunky'; text-align:center;">TOXIC POTION!</h2>
+                `;
+                const overlay = document.createElement('div');
+                overlay.className = 'poison-overlay';
+                slot.appendChild(overlay);
+                slot.style.border = "4px solid red";
+                
+                const clickerNum = gameState.currentPlayer;
+                gameState[clickerNum === 1 ? 'p1' : 'p2'].clovers--;
+                updateClovers(clickerNum);
+            } else {
+                content.innerHTML = `
+                    <img src="${card.name}" class="zoom-card" style="opacity:0.5;">
+                    <h2 style="color:#4CAF50; font-family:'LoverChunky'; text-align:center;">SAFE!</h2>
+                `;
+                const safeDiv = document.createElement('div');
+                safeDiv.className = 'safe-overlay';
+                safeDiv.innerText = 'SAFE';
+                slot.appendChild(safeDiv);
+                slot.style.border = "2px solid #4CAF50";
+            }
+        };
+
+        okBtn.onclick = () => {
+            modal.classList.add('hidden');
+            if (gameState.phase !== 'end') {
+                let next = gameState.currentPlayer === 1 ? 2 : 1;
+                if (gameState[next === 1 ? 'p1' : 'p2'].isEliminated) {
+                    gameState.currentPlayer = gameState.currentPlayer;
+                } else {
+                    gameState.currentPlayer = next;
+                }
+                updateTurnVisuals();
+            }
+            checkWinner();
+        };
+    }
+
+    function updateClovers(pNum) {
+        const bar = document.getElementById(`p${pNum}-clovers`);
+        if (bar.lastElementChild) bar.removeChild(bar.lastElementChild);
+        if (gameState[pNum === 1 ? 'p1' : 'p2'].clovers <= 0) {
+            gameState[pNum === 1 ? 'p1' : 'p2'].isEliminated = true;
+        }
+    }
+
+    function checkWinner() {
+        if (gameState.p1.isEliminated && gameState.p2.isEliminated) {
+            document.getElementById('end-buttons').classList.remove('hidden');
+            document.getElementById('turn-indicator').innerText = "GAME OVER";
+            gameState.phase = 'end';
+        } else if (gameState.p1.isEliminated || gameState.p2.isEliminated) {
+             document.getElementById('end-buttons').classList.remove('hidden');
+        }
+    }
+</script>
+</body>
+</html>
