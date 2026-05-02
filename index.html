@@ -424,16 +424,23 @@
                 p.className = 'poison-token';
                 p.id = `poison-p${pNum}-${i}`;
                 
-                // Set draggable to false to prevent the browser's native drag operations
                 p.draggable = false; 
+
+                // Prevent default native drag actions
+                p.ondragstart = () => false;
+                p.addEventListener('dragstart', (e) => e.preventDefault());
 
                 p.onpointerdown = (e) => {
                     if (gameState.phase !== 'poison') return;
                     
-                    // Prevent default text selection and gestures
                     e.preventDefault(); 
                     
                     draggedElement = e.target;
+                    
+                    // Capture the pointer
+                    try {
+                        draggedElement.setPointerCapture(e.pointerId);
+                    } catch (err) {}
                     
                     const rect = draggedElement.getBoundingClientRect();
                     offsetX = e.clientX - rect.left;
@@ -458,6 +465,10 @@
 
     function handlePointerUp(e) {
         if (draggedElement) {
+            try {
+                draggedElement.releasePointerCapture(e.pointerId);
+            } catch (err) {}
+            
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handlePointerUp);
 
@@ -494,10 +505,18 @@
 
     function moveAt(clientX, clientY) {
         if (draggedElement) {
+            const rect = draggedElement.getBoundingClientRect();
+            let x = clientX - offsetX;
+            let y = clientY - offsetY;
+
+            // Constrain position within the viewport bounds
+            x = Math.max(0, Math.min(x, window.innerWidth - rect.width));
+            y = Math.max(0, Math.min(y, window.innerHeight - rect.height));
+
             draggedElement.style.position = 'fixed';
             draggedElement.style.zIndex = '2500';
-            draggedElement.style.left = (clientX - offsetX) + 'px';
-            draggedElement.style.top = (clientY - offsetY) + 'px';
+            draggedElement.style.left = x + 'px';
+            draggedElement.style.top = y + 'px';
         }
     }
 
