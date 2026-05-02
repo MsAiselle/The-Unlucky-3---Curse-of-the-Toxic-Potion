@@ -125,6 +125,7 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             overflow: hidden;
+            flex-shrink: 0; /* FIXED OVERLAPPING: prevents elements from being squeezed */
         }
 
         .card-img { width: 95%; height: 95%; object-fit: contain; cursor: pointer; }
@@ -406,18 +407,18 @@
                 p.className = 'poison-token';
                 p.id = `poison-p${pNum}-${i}`;
                 
-                // Using pointer events instead of HTML5 drag & drop to fix fullscreen & page scrolling issues
                 p.onpointerdown = (e) => {
                     if (gameState.phase !== 'poison') return;
-                    e.preventDefault();
                     draggedElement = e.target;
-                    draggedElement.setPointerCapture(e.pointerId);
                     
                     const rect = draggedElement.getBoundingClientRect();
                     offsetX = e.clientX - rect.left;
                     offsetY = e.clientY - rect.top;
                     
                     moveAt(e.clientX, e.clientY);
+                    
+                    window.addEventListener('pointermove', handlePointerMove);
+                    window.addEventListener('pointerup', handlePointerUp);
                 };
                 
                 dock.appendChild(p);
@@ -425,15 +426,17 @@
         });
     }
 
-    window.addEventListener('pointermove', (e) => {
+    function handlePointerMove(e) {
         if (draggedElement) {
             moveAt(e.clientX, e.clientY);
         }
-    });
+    }
 
-    window.addEventListener('pointerup', (e) => {
+    function handlePointerUp(e) {
         if (draggedElement) {
-            draggedElement.releasePointerCapture(e.pointerId);
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+
             const elements = document.elementsFromPoint(e.clientX, e.clientY);
             const slot = elements.find(el => el.classList.contains('card-slot'));
             
@@ -463,14 +466,7 @@
             }
             draggedElement = null;
         }
-
-        function resetElement() {
-            draggedElement.style.position = '';
-            draggedElement.style.zIndex = '';
-            draggedElement.style.left = '';
-            draggedElement.style.top = '';
-        }
-    });
+    }
 
     window.addEventListener('touchmove', (e) => {
         if (draggedElement) {
@@ -484,6 +480,15 @@
             draggedElement.style.zIndex = '2500';
             draggedElement.style.left = (clientX - offsetX) + 'px';
             draggedElement.style.top = (clientY - offsetY) + 'px';
+        }
+    }
+
+    function resetElement() {
+        if (draggedElement) {
+            draggedElement.style.position = '';
+            draggedElement.style.zIndex = '';
+            draggedElement.style.left = '';
+            draggedElement.style.top = '';
         }
     }
 
