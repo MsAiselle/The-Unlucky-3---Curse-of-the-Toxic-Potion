@@ -143,9 +143,10 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             overflow: hidden;
             flex-shrink: 0;
+            cursor: pointer;
         }
 
-        .card-img { width: 95%; height: 95%; object-fit: contain; cursor: pointer; }
+        .card-img { width: 95%; height: 95%; object-fit: contain; }
 
         .poison-overlay {
             position: absolute; width: 100%; height: 100%; top: 0; left: 0;
@@ -157,8 +158,15 @@
             width: 70px;
             height: 70px;
             object-fit: contain;
-            cursor: grab;
-            touch-action: none;
+            cursor: pointer;
+            transition: transform 0.2s, border 0.2s;
+        }
+        
+        .selected-poison {
+            border: 3px solid gold;
+            border-radius: 50%;
+            box-shadow: 0 0 12px gold;
+            transform: scale(1.1);
         }
 
         .safe-overlay {
@@ -315,9 +323,7 @@
         currentPlayer: 1 
     };
 
-    let draggedElement = null;
-    let offsetX = 0;
-    let offsetY = 0;
+    let selectedPoisonToken = null;
 
     const music = document.getElementById('bg-music');
     const muteBtn = document.getElementById('btn-mute');
@@ -375,11 +381,20 @@
             slot.className = 'card-slot';
             slot.dataset.idx = idx;
             slot.dataset.player = pNum;
-            slot.ondragover = (e) => e.preventDefault();
+
             const img = document.createElement('img');
             img.src = card.name; 
             img.className = 'card-img';
-            img.onclick = () => handleCardClick(pNum, idx);
+            
+            // Handle phase clicks safely without dragging
+            slot.onclick = () => {
+                if (gameState.phase === 'poison') {
+                    handleCardSlotClick(pNum, idx);
+                } else if (gameState.phase === 'survival') {
+                    handleCardClick(pNum, idx);
+                }
+            };
+
             slot.appendChild(img);
             grid.appendChild(slot);
         });
@@ -414,10 +429,6 @@
     function initPoisonPhase() {
         gameState.phase = 'poison';
         document.getElementById('btn-reveal-poison').classList.add('hidden');
-        
-        // Prevent default browser drag/select behaviors that could exit fullscreen
-        document.addEventListener('dragstart', preventDefaultAction);
-        document.addEventListener('selectstart', preventDefaultAction);
 
         [1, 2].forEach(pNum => {
             document.getElementById(`p${pNum}-finish-btn`).classList.remove('hidden');
@@ -430,36 +441,15 @@
                 p.className = 'poison-token';
                 p.id = `poison-p${pNum}-${i}`;
 
-                p.onpointerdown = (e) => {
+                // Click to select poison token
+                p.onclick = (e) => {
+                    e.stopPropagation();
                     if (gameState.phase !== 'poison') return;
-                    e.preventDefault(); 
                     
-                    // Create floating ghost element
-                    const ghost = document.createElement('img');
-                    ghost.src = 'poison.png';
-                    ghost.style.width = '70px';
-                    ghost.style.height = '70px';
-                    ghost.style.position = 'fixed';
-                    ghost.style.zIndex = '3000';
-                    ghost.style.pointerEvents = 'none';
-                    ghost.id = `ghost-${p.id}`;
+                    document.querySelectorAll('.poison-token').forEach(el => el.classList.remove('selected-poison'));
+                    p.classList.add('selected-poison');
                     
-                    document.body.appendChild(ghost);
-                    
-                    draggedElement = {
-                        original: p,
-                        ghost: ghost,
-                        id: p.id
-                    };
-                    
-                    const rect = p.getBoundingClientRect();
-                    offsetX = e.clientX - rect.left;
-                    offsetY = e.clientY - rect.top;
-                    
-                    moveGhostAt(e.clientX, e.clientY);
-                    
-                    window.addEventListener('pointermove', handleGhostMove);
-                    window.addEventListener('pointerup', handleGhostUp);
+                    selectedPoisonToken = { element: p, pNum: pNum };
                 };
                 
                 dock.appendChild(p);
@@ -467,61 +457,33 @@
         });
     }
 
-    function preventDefaultAction(e) {
-        e.preventDefault();
-    }
-
-    function handleGhostMove(e) {
-        if (draggedElement) {
-            moveGhostAt(e.clientX, e.clientY);
-        }
-    }
-
-    function moveGhostAt(clientX, clientY) {
-        if (draggedElement && draggedElement.ghost) {
-            const rect = draggedElement.ghost.getBoundingClientRect();
-            let x = clientX - offsetX;
-            let y = clientY - offsetY;
-
-            // Constrain position within the viewport bounds so dragging out doesn't trigger chrome actions
-            x = Math.max(0, Math.min(x, window.innerWidth - rect.width));
-            y = Math.max(0, Math.min(y, window.innerHeight - rect.height));
-
-            draggedElement.ghost.style.left = x + 'px';
-            draggedElement.ghost.style.top = y + 'px';
-        }
-    }
-
-    function handleGhostUp(e) {
-        if (draggedElement) {
-            window.removeEventListener('pointermove', handleGhostMove);
-            window.removeEventListener('pointerup', handleGhostUp);
-
-            const elements = document.elementsFromPoint(e.clientX, e.clientY);
-            const slot = elements.find(el => el.classList.contains('card-slot'));
+    function handleCardSlotClick(slotP, cardIdx) {
+        if (gameState.phase !== 'poison') return;
+        
+        if (selectedPoisonToken) {
+            const { element, pNum } = selectedPoisonToken;
             
-            if (slot) {
-                const tokenId = draggedElement.id;
-                const parts = tokenId.split('-');
-                const targetP = parseInt(parts[1].replace('p', ''));
-                const cardIdx = parseInt(slot.dataset.idx);
-                const slotP = parseInt(slot.dataset.player);
-                
-                if (targetP === slotP) {
-                    const player = targetP === 1 ? gameState.p1 : gameState.p2;
-                    if (!player.cards[cardIdx].hasPoison) {
-                        player.cards[cardIdx].hasPoison = true;
-                        const overlay = document.createElement('div');
-                        overlay.className = 'poison-overlay';
-                        slot.appendChild(overlay);
-                        // Safely remove the original element from the dock
-                        draggedElement.original.remove();
-                    }
+            if (slotP === pNum) {
+                const player = slotP === 1 ? gameState.p1 : gameState.p2;
+                if (!player.cards[cardIdx].hasPoison) {
+                    player.cards[cardIdx].hasPoison = true;
+                    
+                    const slot = document.querySelector(`#p${slotP}-grid .card-slot[data-idx="${cardIdx}"]`);
+                    const overlay = document.createElement('div');
+                    overlay.className = 'poison-overlay';
+                    slot.appendChild(overlay);
+                    
+                    // Remove token from the dock
+                    element.remove();
+                    selectedPoisonToken = null;
+                } else {
+                    alert("This card already has a toxic potion!");
                 }
+            } else {
+                alert("You can only place your potion on your own cards!");
             }
-            
-            draggedElement.ghost.remove();
-            draggedElement = null;
+        } else {
+            alert("Select a toxic potion from the dock first by clicking on it.");
         }
     }
 
@@ -537,10 +499,6 @@
 
     function initSurvivalPhase() {
         gameState.phase = 'survival';
-        // Clean up document-level preventers once we leave the poison phase
-        document.removeEventListener('dragstart', preventDefaultAction);
-        document.removeEventListener('selectstart', preventDefaultAction);
-        
         document.getElementById('btn-start-survival').classList.add('hidden');
         [1, 2].forEach(pNum => {
             const bar = document.getElementById(`p${pNum}-clovers`);
