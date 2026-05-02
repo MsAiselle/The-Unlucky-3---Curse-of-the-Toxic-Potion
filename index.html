@@ -241,15 +241,6 @@
         <h1 class="main-title">The Unlucky 3:</h1>
         <h2 class="subtitle">Curse of the Toxic Potion</h2>
         
-        <div style="margin-bottom: 25px; font-family: 'Rillwood', serif; font-size: 1.2rem; color: white;">
-            <label for="device-type" style="margin-right: 10px;">Select Device:</label>
-            <select id="device-type" style="padding: 6px 12px; font-size: 1rem; border-radius: 5px; font-family: 'Rillwood', serif; background: white; color: black; border: none; cursor: pointer;">
-                <option value="laptop">Laptop / Desktop</option>
-                <option value="ipad">iPad / Tablet</option>
-                <option value="mobile">Mobile Phone</option>
-            </select>
-        </div>
-
         <button onclick="startGame()">Start Game</button>
     </div>
 
@@ -330,19 +321,11 @@
     }
 
     function startGame() {
-        const deviceType = document.getElementById('device-type').value;
         const container = document.getElementById('game-container');
 
-        // Apply visual scaling and sizing depending on the device selected
-        if (deviceType === 'ipad') {
-            container.style.transform = 'scale(0.85)';
-            container.style.transformOrigin = 'top center';
-        } else if (deviceType === 'mobile') {
-            container.style.transform = 'scale(0.65)';
-            container.style.transformOrigin = 'top center';
-        } else {
-            container.style.transform = 'none';
-        }
+        // Apply visual scaling and sizing for iPad only
+        container.style.transform = 'scale(0.85)';
+        container.style.transformOrigin = 'top center';
 
         document.getElementById('home-screen').classList.add('hidden');
         document.getElementById('setup-screen').classList.remove('hidden');
