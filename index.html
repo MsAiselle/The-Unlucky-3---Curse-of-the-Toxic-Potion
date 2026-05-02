@@ -357,7 +357,6 @@
         document.getElementById('setup-screen').classList.remove('hidden');
         document.getElementById('control-bar').classList.remove('hidden');
         
-        // Start playing music on first interaction
         music.play().catch(e => console.log("Audio play blocked by browser. Interaction required."));
     }
 
@@ -415,41 +414,52 @@
     function initPoisonPhase() {
         gameState.phase = 'poison';
         document.getElementById('btn-reveal-poison').classList.add('hidden');
+        
+        // Prevent default browser drag/select behaviors that could exit fullscreen
+        document.addEventListener('dragstart', preventDefaultAction);
+        document.addEventListener('selectstart', preventDefaultAction);
+
         [1, 2].forEach(pNum => {
             document.getElementById(`p${pNum}-finish-btn`).classList.remove('hidden');
             const dock = document.getElementById(`p${pNum}-poison-dock`);
+            dock.innerHTML = '';
+            
             for(let i=0; i<3; i++) {
                 const p = document.createElement('img');
                 p.src = 'poison.png';
                 p.className = 'poison-token';
                 p.id = `poison-p${pNum}-${i}`;
-                
-                p.draggable = false; 
-
-                // Prevent default native drag actions
-                p.ondragstart = () => false;
-                p.addEventListener('dragstart', (e) => e.preventDefault());
 
                 p.onpointerdown = (e) => {
                     if (gameState.phase !== 'poison') return;
-                    
                     e.preventDefault(); 
                     
-                    draggedElement = e.target;
+                    // Create floating ghost element
+                    const ghost = document.createElement('img');
+                    ghost.src = 'poison.png';
+                    ghost.style.width = '70px';
+                    ghost.style.height = '70px';
+                    ghost.style.position = 'fixed';
+                    ghost.style.zIndex = '3000';
+                    ghost.style.pointerEvents = 'none';
+                    ghost.id = `ghost-${p.id}`;
                     
-                    // Capture the pointer
-                    try {
-                        draggedElement.setPointerCapture(e.pointerId);
-                    } catch (err) {}
+                    document.body.appendChild(ghost);
                     
-                    const rect = draggedElement.getBoundingClientRect();
+                    draggedElement = {
+                        original: p,
+                        ghost: ghost,
+                        id: p.id
+                    };
+                    
+                    const rect = p.getBoundingClientRect();
                     offsetX = e.clientX - rect.left;
                     offsetY = e.clientY - rect.top;
                     
-                    moveAt(e.clientX, e.clientY);
+                    moveGhostAt(e.clientX, e.clientY);
                     
-                    window.addEventListener('pointermove', handlePointerMove);
-                    window.addEventListener('pointerup', handlePointerUp);
+                    window.addEventListener('pointermove', handleGhostMove);
+                    window.addEventListener('pointerup', handleGhostUp);
                 };
                 
                 dock.appendChild(p);
@@ -457,20 +467,35 @@
         });
     }
 
-    function handlePointerMove(e) {
+    function preventDefaultAction(e) {
+        e.preventDefault();
+    }
+
+    function handleGhostMove(e) {
         if (draggedElement) {
-            moveAt(e.clientX, e.clientY);
+            moveGhostAt(e.clientX, e.clientY);
         }
     }
 
-    function handlePointerUp(e) {
+    function moveGhostAt(clientX, clientY) {
+        if (draggedElement && draggedElement.ghost) {
+            const rect = draggedElement.ghost.getBoundingClientRect();
+            let x = clientX - offsetX;
+            let y = clientY - offsetY;
+
+            // Constrain position within the viewport bounds so dragging out doesn't trigger chrome actions
+            x = Math.max(0, Math.min(x, window.innerWidth - rect.width));
+            y = Math.max(0, Math.min(y, window.innerHeight - rect.height));
+
+            draggedElement.ghost.style.left = x + 'px';
+            draggedElement.ghost.style.top = y + 'px';
+        }
+    }
+
+    function handleGhostUp(e) {
         if (draggedElement) {
-            try {
-                draggedElement.releasePointerCapture(e.pointerId);
-            } catch (err) {}
-            
-            window.removeEventListener('pointermove', handlePointerMove);
-            window.removeEventListener('pointerup', handlePointerUp);
+            window.removeEventListener('pointermove', handleGhostMove);
+            window.removeEventListener('pointerup', handleGhostUp);
 
             const elements = document.elementsFromPoint(e.clientX, e.clientY);
             const slot = elements.find(el => el.classList.contains('card-slot'));
@@ -489,43 +514,14 @@
                         const overlay = document.createElement('div');
                         overlay.className = 'poison-overlay';
                         slot.appendChild(overlay);
-                        draggedElement.remove();
-                    } else {
-                        resetElement();
+                        // Safely remove the original element from the dock
+                        draggedElement.original.remove();
                     }
-                } else {
-                    resetElement();
                 }
-            } else {
-                resetElement();
             }
+            
+            draggedElement.ghost.remove();
             draggedElement = null;
-        }
-    }
-
-    function moveAt(clientX, clientY) {
-        if (draggedElement) {
-            const rect = draggedElement.getBoundingClientRect();
-            let x = clientX - offsetX;
-            let y = clientY - offsetY;
-
-            // Constrain position within the viewport bounds
-            x = Math.max(0, Math.min(x, window.innerWidth - rect.width));
-            y = Math.max(0, Math.min(y, window.innerHeight - rect.height));
-
-            draggedElement.style.position = 'fixed';
-            draggedElement.style.zIndex = '2500';
-            draggedElement.style.left = x + 'px';
-            draggedElement.style.top = y + 'px';
-        }
-    }
-
-    function resetElement() {
-        if (draggedElement) {
-            draggedElement.style.position = '';
-            draggedElement.style.zIndex = '';
-            draggedElement.style.left = '';
-            draggedElement.style.top = '';
         }
     }
 
@@ -541,6 +537,10 @@
 
     function initSurvivalPhase() {
         gameState.phase = 'survival';
+        // Clean up document-level preventers once we leave the poison phase
+        document.removeEventListener('dragstart', preventDefaultAction);
+        document.removeEventListener('selectstart', preventDefaultAction);
+        
         document.getElementById('btn-start-survival').classList.add('hidden');
         [1, 2].forEach(pNum => {
             const bar = document.getElementById(`p${pNum}-clovers`);
