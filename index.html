@@ -28,7 +28,6 @@
             align-items: center; justify-content: flex-start;
             padding-top: 20px;
             box-sizing: border-box;
-            transition: transform 0.3s ease;
         }
 
         .hidden { display: none !important; }
@@ -198,7 +197,7 @@
                 width: 95% !important;
                 height: auto;
                 max-height: none;
-                min-height: 300px;
+                min-height: 380px;
             }
 
             .top-ui-bar {
@@ -240,7 +239,6 @@
     <div id="home-screen" class="flex-center">
         <h1 class="main-title">The Unlucky 3:</h1>
         <h2 class="subtitle">Curse of the Toxic Potion</h2>
-        
         <button onclick="startGame()">Start Game</button>
     </div>
 
@@ -306,8 +304,20 @@
     const muteBtn = document.getElementById('btn-mute');
 
     function toggleFS() {
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-        else document.exitFullscreen();
+        const docEl = document.documentElement;
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen();
+            } else if (docEl.webkitRequestFullscreen) {
+                docEl.webkitRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
     }
 
     // Audio Functions
@@ -321,12 +331,6 @@
     }
 
     function startGame() {
-        const container = document.getElementById('game-container');
-
-        // Apply visual scaling and sizing for iPad only
-        container.style.transform = 'scale(0.85)';
-        container.style.transformOrigin = 'top center';
-
         document.getElementById('home-screen').classList.add('hidden');
         document.getElementById('setup-screen').classList.remove('hidden');
         document.getElementById('control-bar').classList.remove('hidden');
@@ -469,6 +473,12 @@
             draggedElement.style.top = '';
         }
     });
+
+    window.addEventListener('touchmove', (e) => {
+        if (draggedElement) {
+            e.preventDefault();
+        }
+    }, { passive: false });
 
     function moveAt(clientX, clientY) {
         if (draggedElement) {
