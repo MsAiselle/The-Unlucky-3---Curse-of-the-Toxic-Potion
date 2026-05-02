@@ -428,10 +428,6 @@
                     if (gameState.phase !== 'poison') return;
                     draggedElement = e.target;
                     
-                    // Lock pointer and prevent default gestures (Fullscreen exits)
-                    draggedElement.setPointerCapture(e.pointerId);
-                    e.preventDefault();
-                    
                     const rect = draggedElement.getBoundingClientRect();
                     offsetX = e.clientX - rect.left;
                     offsetY = e.clientY - rect.top;
@@ -457,10 +453,6 @@
         if (draggedElement) {
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handlePointerUp);
-
-            try {
-                draggedElement.releasePointerCapture(e.pointerId);
-            } catch (err) {}
 
             const elements = document.elementsFromPoint(e.clientX, e.clientY);
             const slot = elements.find(el => el.classList.contains('card-slot'));
@@ -492,12 +484,6 @@
             draggedElement = null;
         }
     }
-
-    window.addEventListener('touchmove', (e) => {
-        if (draggedElement) {
-            e.preventDefault();
-        }
-    }, { passive: false });
 
     function moveAt(clientX, clientY) {
         if (draggedElement) {
