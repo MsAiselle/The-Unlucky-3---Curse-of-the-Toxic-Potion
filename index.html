@@ -81,15 +81,31 @@
             font-size: 1.5rem; box-shadow: 0 0 20px gold;
         }
 
-        #setup-screen { width: 100%; height: 72%; display: flex; justify-content: center; gap: 10px; padding: 0 20px; box-sizing: border-box; }
+        #setup-screen { 
+            width: 100%; 
+            height: auto; 
+            min-height: 72vh; 
+            display: flex; 
+            justify-content: center; 
+            gap: 10px; 
+            padding: 0 20px 20px 20px; 
+            box-sizing: border-box; 
+        }
         
         .player-col { 
-            width: 48%; height: 100%; background: rgba(0,0,0,0.85); 
-            padding: 15px; border: 4px solid #444; box-sizing: border-box;
-            display: flex; flex-direction: column; align-items: center;
-            transition: all 0.4s ease; position: relative;
+            width: 48%; 
+            min-height: 480px; 
+            background: rgba(0,0,0,0.85); 
+            padding: 15px; 
+            border: 4px solid #444; 
+            box-sizing: border-box;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+            transition: all 0.4s ease; 
+            position: relative;
             border-radius: 15px;
-            overflow: hidden;
+            height: auto;
         }
 
         .active-target {
@@ -110,8 +126,9 @@
             margin: 10px 0; 
             width: 100%; 
             justify-items: center;
-            flex-grow: 1; 
-            min-height: 200px;
+            flex-grow: 0; 
+            min-height: 220px;
+            max-height: 340px;
             overflow-y: auto;
             padding-bottom: 15px;
         }
@@ -125,7 +142,7 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             overflow: hidden;
-            flex-shrink: 0; /* FIXED OVERLAPPING: prevents elements from being squeezed */
+            flex-shrink: 0;
         }
 
         .card-img { width: 95%; height: 95%; object-fit: contain; cursor: pointer; }
@@ -199,7 +216,7 @@
                 width: 95% !important;
                 height: auto;
                 max-height: none;
-                min-height: 380px;
+                min-height: 420px;
             }
 
             .top-ui-bar {
@@ -411,6 +428,10 @@
                     if (gameState.phase !== 'poison') return;
                     draggedElement = e.target;
                     
+                    // Lock pointer and prevent default gestures (Fullscreen exits)
+                    draggedElement.setPointerCapture(e.pointerId);
+                    e.preventDefault();
+                    
                     const rect = draggedElement.getBoundingClientRect();
                     offsetX = e.clientX - rect.left;
                     offsetY = e.clientY - rect.top;
@@ -436,6 +457,10 @@
         if (draggedElement) {
             window.removeEventListener('pointermove', handlePointerMove);
             window.removeEventListener('pointerup', handlePointerUp);
+
+            try {
+                draggedElement.releasePointerCapture(e.pointerId);
+            } catch (err) {}
 
             const elements = document.elementsFromPoint(e.clientX, e.clientY);
             const slot = elements.find(el => el.classList.contains('card-slot'));
