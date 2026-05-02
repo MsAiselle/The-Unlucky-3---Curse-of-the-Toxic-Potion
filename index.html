@@ -424,8 +424,15 @@
                 p.className = 'poison-token';
                 p.id = `poison-p${pNum}-${i}`;
                 
+                // Set draggable to false to prevent the browser's native drag operations
+                p.draggable = false; 
+
                 p.onpointerdown = (e) => {
                     if (gameState.phase !== 'poison') return;
+                    
+                    // Prevent default text selection and gestures
+                    e.preventDefault(); 
+                    
                     draggedElement = e.target;
                     
                     const rect = draggedElement.getBoundingClientRect();
