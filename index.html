@@ -111,6 +111,7 @@
             width: 100%; 
             justify-items: center;
             flex-grow: 1; 
+            min-height: 200px;
             overflow-y: auto;
             padding-bottom: 15px;
         }
@@ -250,7 +251,7 @@
                 <button id="p1-enlarge-btn" class="hidden" onclick="enlargeAll(1)" style="font-size: 0.9rem;">Enlarge All</button>
             </div>
             <div id="p1-clovers" class="clover-bar"></div>
-            <div id="p1-poison-dock" style="display:flex; gap:10px; min-height:75px; align-items:center;"></div>
+            <div id="p1-poison-dock" style="display:flex; gap:10px; min-height:75px; align-items:center; flex-wrap:wrap;"></div>
             <div id="p1-grid" class="card-grid"></div>
             <button id="p1-finish-btn" class="hidden" onclick="lockIndividualPoison(1)">Finish Hiding</button>
         </div>
@@ -262,7 +263,7 @@
                 <button id="p2-enlarge-btn" class="hidden" onclick="enlargeAll(2)" style="font-size: 0.9rem;">Enlarge All</button>
             </div>
             <div id="p2-clovers" class="clover-bar"></div>
-            <div id="p2-poison-dock" style="display:flex; gap:10px; min-height:75px; align-items:center;"></div>
+            <div id="p2-poison-dock" style="display:flex; gap:10px; min-height:75px; align-items:center; flex-wrap:wrap;"></div>
             <div id="p2-grid" class="card-grid"></div>
             <button id="p2-finish-btn" class="hidden" onclick="lockIndividualPoison(2)">Finish Hiding</button>
         </div>
@@ -358,7 +359,6 @@
             slot.dataset.idx = idx;
             slot.dataset.player = pNum;
             slot.ondragover = (e) => e.preventDefault();
-            slot.ondrop = dropPoison;
             const img = document.createElement('img');
             img.src = card.name; 
             img.className = 'card-img';
@@ -404,14 +404,9 @@
                 const p = document.createElement('img');
                 p.src = 'poison.png';
                 p.className = 'poison-token';
-                p.draggable = true;
                 p.id = `poison-p${pNum}-${i}`;
                 
-                p.ondragstart = (e) => {
-                    e.dataTransfer.setData("text", e.target.id);
-                    e.dataTransfer.setDragImage(e.target, 35, 35);
-                };
-
+                // Using pointer events instead of HTML5 drag & drop to fix fullscreen & page scrolling issues
                 p.onpointerdown = (e) => {
                     if (gameState.phase !== 'poison') return;
                     e.preventDefault();
@@ -489,23 +484,6 @@
             draggedElement.style.zIndex = '2500';
             draggedElement.style.left = (clientX - offsetX) + 'px';
             draggedElement.style.top = (clientY - offsetY) + 'px';
-        }
-    }
-
-    function dropPoison(e) {
-        if (gameState.phase !== 'poison') return;
-        const tokenId = e.dataTransfer.getData("text");
-        const targetP = parseInt(this.dataset.player);
-        const cardIdx = parseInt(this.dataset.idx);
-        if (tokenId.includes(`p${targetP}`)) {
-            const player = targetP === 1 ? gameState.p1 : gameState.p2;
-            if (!player.cards[cardIdx].hasPoison) {
-                player.cards[cardIdx].hasPoison = true;
-                const overlay = document.createElement('div');
-                overlay.className = 'poison-overlay';
-                this.appendChild(overlay);
-                document.getElementById(tokenId).remove();
-            }
         }
     }
 
